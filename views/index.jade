@@ -1,5 +1,10 @@
 extends layout
 
 block content
-  h1= title
-  p Welcome to #{title}
+	- var user;
+	if !user
+		p 
+			a(href="/login") login
+	else
+		p
+			a(href="/logout") Log Out
