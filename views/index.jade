@@ -1,9 +1,5 @@
 extends layout
 
 block content
-	if !user
 		p 
 			a(href="/login") login
-	else
-		p
-			a(href="/logout") Log Out

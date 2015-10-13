@@ -6,33 +6,54 @@ var GitHubStrategy = require('passport-github').Strategy;
 
 var mongoose = require('mongoose');
 mongoose.connect('mongodb://localhost/oauth', function () {
-    console.log('mongodb connected')
+    console.log('mongodb connected');
 });
 
 var User = require('./models/user');
 
 var routes = require('./routes');
 
-var GITHUB_CLIENT_ID = 'da50ef5b007bb81068bc';
-var GITHUB_CLIENT_SECRET = '780d69bc3ec6c76faccef27a4c114e87a8017e1c';
+var GITHUB_CLIENT_ID = process.env.GITHUB_ID || 'da50ef5b007bb81068bc';
+var GITHUB_CLIENT_SECRET = process.env.GITHUB_SECRET || '780d69bc3ec6c76faccef27a4c114e87a8017e1c';
+
+var TWITTER_consumerKey = process.env.TWITTER_KEY || 'lkVvgvuFyPDyMa7ARYVuF7cjR';
+var TWITTER_consumerSecret = process.env.TWITTER_SECRET || 'zBstuMr9fol2axy3uXmNeDKMh4y3LEb2PX8AjOHzzriaUkqWDf';
 
 passport.use(new GitHubStrategy({
     clientID: GITHUB_CLIENT_ID,
     clientSecret: GITHUB_CLIENT_SECRET,
-    callbackURL: 'http://127.0.0.1:3000/auth/github/callback'
+    callbackURL: 'http://localhost:3000/login/github/callback'
     },
     function(accessToken, refreshToken, profile, done) {
-        User.findOne({ twitter: profile.id }, function(err, existingUser) {
+        User.findOne({ 'github.id': profile.id }, function(err, existingUser) {
             if (existingUser) {
                 return done(null, existingUser);
             } 
             var user = new User();
-            // Twitter will not provide an email address. Period.
-            // But a person's twitter username is guaranteed to be unique
-            // so we can "fake" a twitter email address as follows:
-            // username@twitter.mydomain.com
-            user.email = profile.username + '@twitter.' + 'domain' + '.com';
-            user.twitter = profile.id;
+            user.github.id = profile.id;
+            user.github.token = accessToken;
+            user.email = profile.username + '@github.' + '.com';
+            user.save(function(err) {
+                done(err, user);
+            });
+        });
+    }
+));
+
+passport.use(new TwitterStrategy({
+    consumerKey: TWITTER_consumerKey,
+    consumerSecret: TWITTER_consumerSecret,
+    callbackURL: 'http://localhost:3000/login/twitter/callback'
+    },
+    function(accessToken, refreshToken, profile, done) {
+        User.findOne({ 'twitter.id': profile.id }, function(err, existingUser) {
+            if (existingUser) {
+                return done(null, existingUser);
+            } 
+            var user = new User();
+            user.twitter.id = profile.id;
+            user.twitter.token = accessToken;
+            user.email = profile.username + '@twitter.' + '.com';
             user.save(function(err) {
                 done(err, user);
             });
@@ -77,23 +98,6 @@ app.use(function(err, req, res, next) {
         error: {}
     });
 });
-
-app.get('/', function(req, res) {
-    res.render('index');
-});
-
-app.get('/account', ensureAuthenticated, function(req, res) {
-    res.render('account');
-});
-
-app.get('/login', function(req, res) {
-    res.render('login');
-});
-
-app.get('/auth/github', passport.authenticate('github', { scope: [ 'user:email' ] }));
-
-app.get('/auth/github/callback', passport.authenticate('github', 
-    { successRedirect: '/account', failureRedirect: '/login' }));
 
 app.get('/logout', function(req, res){
     req.logout();
