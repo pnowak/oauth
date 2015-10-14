@@ -14,6 +14,11 @@ router.get('/account', function(req, res, next) {
   res.render('account', { title: 'Account' });
 });
 
+router.get('/logout', function(req, res){
+    req.logout();
+    res.redirect('/');
+});
+
 router.get('/login/github', passport.authenticate('github', { scope: 'email' }));
 
 router.get('/login/github/callback', passport.authenticate('github', 

@@ -1,15 +1,15 @@
 var express = require('express');
+var path = require("path");
+var cookieParser = require("cookie-parser");
+var bodyParser = require("body-parser");
 var session = require('express-session');
 var passport = require('passport');
 var TwitterStrategy = require('passport-twitter').Strategy;
 var GitHubStrategy = require('passport-github').Strategy;
 
-var mongoose = require('mongoose');
-mongoose.connect('mongodb://localhost/oauth', function () {
-    console.log('mongodb connected');
-});
-
 var User = require('./models/user');
+
+var mongoose = require('mongoose');
 
 var routes = require('./routes');
 
@@ -18,6 +18,24 @@ var GITHUB_CLIENT_SECRET = process.env.GITHUB_SECRET || '780d69bc3ec6c76faccef27
 
 var TWITTER_consumerKey = process.env.TWITTER_KEY || 'lkVvgvuFyPDyMa7ARYVuF7cjR';
 var TWITTER_consumerSecret = process.env.TWITTER_SECRET || 'zBstuMr9fol2axy3uXmNeDKMh4y3LEb2PX8AjOHzzriaUkqWDf';
+
+mongoose.connect('mongodb://localhost/oauth', function () {
+    console.log('mongodb connected');
+});
+
+var app = express();
+
+app.set('view engine', 'jade');
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: false }));
+app.use(cookieParser());
+app.use(express.static(path.join(__dirname, "public")));
+app.use(require('express-session')({ secret: 'keyboard cat', resave: true, saveUninitialized: true }));
+
+app.use(passport.initialize());
+app.use(passport.session());
+
+app.use('/', routes);
 
 passport.use(new GitHubStrategy({
     clientID: GITHUB_CLIENT_ID,
@@ -69,22 +87,6 @@ passport.deserializeUser(function(obj, done) {
     done(null, obj);
 });
 
-function ensureAuthenticated(req, res, next) {
-    if (req.isAuthenticated()) { return next(); }
-    res.redirect('/login');
-}
-
-var app = express();
-
-app.set('view engine', 'jade');
-
-app.use(require('express-session')({ secret: 'keyboard cat', resave: true, saveUninitialized: true }));
-
-app.use(passport.initialize());
-app.use(passport.session());
-
-app.use('/', routes);
-
 app.use(function(req, res, next) {
     var err = new Error('Not Found');
     err.status = 404;
@@ -97,11 +99,6 @@ app.use(function(err, req, res, next) {
         message: err.message,
         error: {}
     });
-});
-
-app.get('/logout', function(req, res){
-    req.logout();
-    res.redirect('/');
 });
 
 app.listen(3000);
